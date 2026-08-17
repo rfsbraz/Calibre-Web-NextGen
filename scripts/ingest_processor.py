@@ -146,6 +146,7 @@ fetch_and_apply_metadata = None
 TaskAutoSend = None
 WorkerThread = None
 _ub = None
+comic = None
 CWA_DB = None
 EPUBFixer = None
 audiobook = None
@@ -358,7 +359,7 @@ def _load_runtime_dependencies() -> None:
 
 def _load_optional_cps_modules() -> None:
     global _GDRIVE_AVAILABLE, _CPS_AVAILABLE
-    global _gdriveutils, _cps_config, fetch_and_apply_metadata, TaskAutoSend, WorkerThread, _ub
+    global _gdriveutils, _cps_config, fetch_and_apply_metadata, TaskAutoSend, WorkerThread, _ub, comic
 
     if _GDRIVE_AVAILABLE and _CPS_AVAILABLE:
         return
@@ -390,12 +391,14 @@ def _load_optional_cps_modules() -> None:
             from cps.tasks.auto_send import TaskAutoSend as LoadedTaskAutoSend
             from cps.services.worker import WorkerThread as LoadedWorkerThread
             from cps import ub as loaded_ub
+            from cps import comic as loaded_comic
             from cps.calibre_init import init_calibre_db_from_app_db
             init_calibre_db_from_app_db(get_app_db_path())
             fetch_and_apply_metadata = loaded_fetch_and_apply_metadata
             TaskAutoSend = LoadedTaskAutoSend
             WorkerThread = LoadedWorkerThread
             _ub = loaded_ub
+            comic = loaded_comic
             _CPS_AVAILABLE = True
             print("[ingest-processor] Auto-send and metadata functionality available", flush=True)
         except ImportError as e:
@@ -404,6 +407,7 @@ def _load_optional_cps_modules() -> None:
             TaskAutoSend = None
             WorkerThread = None
             _ub = None
+            comic = None
             _CPS_AVAILABLE = False
 
     except Exception as e:
@@ -1111,6 +1115,7 @@ class NewBookProcessor:
         self.convert_ignored_formats = _normalize_format_list(self.cwa_settings['auto_convert_ignored_formats'])
         self.convert_retained_formats = _normalize_format_list(self.cwa_settings.get('auto_convert_retained_formats', []))
         self.is_kindle_epub_fixer = self.cwa_settings['kindle_epub_fixer']
+        self.is_comic_flatten_comicinfo = self.cwa_settings.get('comic_flatten_comicinfo', 0)
 
         # Formats
         self.supported_book_formats = {
@@ -1614,6 +1619,15 @@ class NewBookProcessor:
             print(f"[ingest-processor] ERROR: Failed to stage file for import: {e}", flush=True)
             self.backup(self.filepath, backup_type="failed")
             return
+
+        if getattr(self, "is_comic_flatten_comicinfo", False) and comic is not None and staged_path.suffix.lower() == ".cbz":
+            try:
+                if comic.flatten_comicinfo_to_root(str(staged_path)):
+                    print(f"[ingest-processor] Moved a misplaced ComicInfo.xml to the "
+                          f"archive root: {staged_path.name}", flush=True)
+            except Exception as e:
+                print(f"[ingest-processor] WARN: Could not flatten ComicInfo.xml for "
+                      f"{staged_path.name}, importing as-is: {e}", flush=True)
 
         try:
             mark_ingest_batch_active()

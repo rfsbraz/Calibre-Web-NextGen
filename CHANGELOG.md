@@ -16,6 +16,17 @@ is for things you can see or feel when running the app.
 
 ## [Unreleased]
 
+### Added
+
+- **New ingest setting: move a misplaced `ComicInfo.xml` to the archive root.**
+  The ComicInfo.xml standard requires the file at the root of a `.cbz`; some
+  real scan-group releases package it one folder down instead, alongside the
+  pages, and every reader we checked (including ComicTagger and Komga) then
+  silently gets no metadata from it. Off by default — turn it on in CWA
+  Settings and ingest repackages a copy with the file moved to root before
+  import, only when it's present but misplaced. Your original download is
+  never touched.
+
 ## [v4.1.37] - 2026-08-17
 
 ### Added
